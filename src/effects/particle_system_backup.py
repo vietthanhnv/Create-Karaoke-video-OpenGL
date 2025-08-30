@@ -1,0 +1,1 @@
+# Backup of particle system before recreation

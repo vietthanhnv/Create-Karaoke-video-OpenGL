@@ -1,0 +1,46 @@
+# Core GUI Framework
+PyQt6>=6.5.0
+PyQt6-Qt6>=6.5.0
+PyQt6-OpenGL>=6.5.0
+
+# OpenGL and Graphics
+PyOpenGL>=3.1.6
+PyOpenGL-accelerate>=3.1.6
+moderngl>=5.8.2
+
+# Video and Audio Processing
+opencv-python>=4.8.0
+ffmpeg-python>=0.2.0
+librosa>=0.10.0
+soundfile>=0.12.1
+
+# Text Rendering
+freetype-py>=2.4.0
+Pillow>=10.0.0
+
+# Mathematical Operations
+numpy>=1.24.0
+scipy>=1.11.0
+
+# Data Handling
+dataclasses-json>=0.6.0
+
+# Development and Testing
+pytest>=7.4.0
+pytest-qt>=4.2.0
+pytest-cov>=4.1.0
+black>=23.7.0
+flake8>=6.0.0
+mypy>=1.5.0
+
+# Performance Monitoring
+psutil>=5.9.0
+memory-profiler>=0.61.0
+
+# Logging and Configuration
+loguru>=0.7.0
+pydantic>=2.3.0
+
+# Optional: Hardware acceleration
+# cupy-cuda11x>=12.2.0  # Uncomment for CUDA support
+# torch>=2.0.0          # Uncomment for PyTorch GPU acceleration
