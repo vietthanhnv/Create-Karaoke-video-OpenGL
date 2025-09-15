@@ -99,6 +99,194 @@ class PreviewSystem(QObject):
         # Rendering timer for 60fps targeting
         self._render_timer = QTimer()
         self._render_timer.timeout.connect(self._render_frame)
+        
+        # Target frame interval for FPS calculation
+        self._target_frame_interval = 1000 / self._metrics.target_fps  # milliseconds
+        
+        # Viewport transformation
+        self._viewport_transform = ViewportTransform()
+        
+        # Safe area settings
+        self._safe_area_type = SafeAreaType.NONE
+        
+        # Video source
+        self._video_source = None
+    
+    def start_preview(self) -> None:
+        """Start the preview rendering loop."""
+        if not self._is_active:
+            self._is_active = True
+            target_interval = int(1000 / self._metrics.target_fps)  # Convert to milliseconds
+            self._render_timer.start(target_interval)
+            logger.info("Preview system started")
+    
+    def stop_preview(self) -> None:
+        """Stop the preview rendering loop."""
+        if self._is_active:
+            self._is_active = False
+            self._render_timer.stop()
+            logger.info("Preview system stopped")
+    
+    def play(self) -> None:
+        """Start playback."""
+        self._is_playing = True
+        if not self._is_active:
+            self.start_preview()
+    
+    def pause(self) -> None:
+        """Pause playback."""
+        self._is_playing = False
+    
+    def seek(self, time: float) -> None:
+        """
+        Seek to specific time position.
+        
+        Args:
+            time: Time position in seconds
+        """
+        if self._timeline_engine:
+            self._timeline_engine.current_time = time
+        self._render_frame()
+    
+    def zoom_in(self) -> None:
+        """Zoom in on the preview."""
+        self._viewport_transform.zoom = min(
+            self._viewport_transform.zoom * 1.2,
+            self._viewport_transform.max_zoom
+        )
+        self.viewport_changed.emit(self._viewport_transform)
+        self._render_frame()
+    
+    def zoom_out(self) -> None:
+        """Zoom out on the preview."""
+        self._viewport_transform.zoom = max(
+            self._viewport_transform.zoom / 1.2,
+            self._viewport_transform.min_zoom
+        )
+        self.viewport_changed.emit(self._viewport_transform)
+        self._render_frame()
+    
+    def zoom_to_fit(self) -> None:
+        """Reset zoom to fit the entire preview."""
+        self._viewport_transform.zoom = 1.0
+        self._viewport_transform.pan_x = 0.0
+        self._viewport_transform.pan_y = 0.0
+        self.viewport_changed.emit(self._viewport_transform)
+        self._render_frame()
+    
+    def set_quality_preset(self, quality: QualityPreset) -> None:
+        """
+        Set preview quality preset.
+        
+        Args:
+            quality: Quality preset to use
+        """
+        if self._current_quality != quality:
+            self._current_quality = quality
+            self._metrics.quality_preset = quality
+            self.quality_changed.emit(quality)
+            
+            # Adjust target FPS based on quality
+            if quality == QualityPreset.DRAFT:
+                self._metrics.target_fps = 30.0
+            elif quality == QualityPreset.NORMAL:
+                self._metrics.target_fps = 60.0
+            elif quality == QualityPreset.HIGH:
+                self._metrics.target_fps = 60.0
+            
+            # Update timer interval
+            if self._is_active:
+                target_interval = int(1000 / self._metrics.target_fps)
+                self._render_timer.setInterval(target_interval)
+    
+    def set_video_source(self, video_path: str) -> None:
+        """
+        Set video source for background.
+        
+        Args:
+            video_path: Path to video file
+        """
+        self._video_source = video_path
+        logger.info(f"Video source set: {video_path}")
+        self._render_frame()
+    
+    def get_performance_metrics(self) -> PerformanceMetrics:
+        """
+        Get current performance metrics.
+        
+        Returns:
+            Current performance metrics
+        """
+        return self._metrics
+    
+    def _render_frame(self) -> None:
+        """Render a single frame."""
+        if not self._is_active:
+            return
+        
+        start_time = time.time()
+        
+        try:
+            # Update performance metrics
+            self._update_frame_timing(start_time)
+            
+            # Render frame using renderer if available
+            if self._renderer:
+                self._renderer.render_frame()
+            
+            # Emit frame rendered signal
+            self.frame_rendered.emit()
+            
+        except Exception as e:
+            logger.error(f"Error rendering frame: {e}")
+            self.performance_warning.emit(f"Render error: {str(e)}")
+        
+        # Calculate render time
+        render_time = (time.time() - start_time) * 1000  # Convert to milliseconds
+        self._metrics.render_time_ms = render_time
+    
+    def _update_frame_timing(self, current_time: float) -> None:
+        """Update frame timing metrics."""
+        if self._last_frame_time > 0:
+            frame_time = current_time - self._last_frame_time
+            self._frame_times.append(frame_time)
+            
+            # Keep only recent frame times (last 60 frames)
+            if len(self._frame_times) > 60:
+                self._frame_times.pop(0)
+            
+            # Calculate current FPS
+            if self._frame_times:
+                avg_frame_time = sum(self._frame_times) / len(self._frame_times)
+                self._metrics.current_fps = 1.0 / avg_frame_time if avg_frame_time > 0 else 0.0
+                self._metrics.frame_time_ms = avg_frame_time * 1000
+            
+            # Check performance periodically
+            if current_time - self._last_performance_check > self._performance_check_interval:
+                self._check_performance()
+                self._last_performance_check = current_time
+        
+        self._last_frame_time = current_time
+    
+    def _check_performance(self) -> None:
+        """Check performance and emit warnings if needed."""
+        target_fps = self._metrics.target_fps
+        current_fps = self._metrics.current_fps
+        
+        # Emit FPS update
+        self.fps_updated.emit(current_fps)
+        
+        # Check for performance issues
+        if current_fps < target_fps * 0.8:  # If FPS drops below 80% of target
+            warning = f"Low FPS: {current_fps:.1f}/{target_fps:.1f}"
+            self.performance_warning.emit(warning)
+            
+            # Auto-adjust quality if performance is poor
+            if self._current_quality == QualityPreset.HIGH and current_fps < target_fps * 0.6:
+                self.set_quality_preset(QualityPreset.NORMAL)
+            elif self._current_quality == QualityPreset.NORMAL and current_fps < target_fps * 0.4:
+                self.set_quality_preset(QualityPreset.DRAFT)
+        self._render_timer.timeout.connect(self._render_frame)
         self._target_frame_interval = 1000 / 60  # 16.67ms for 60fps
         
         # Video synchronization

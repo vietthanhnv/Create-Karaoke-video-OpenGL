@@ -378,6 +378,28 @@ class PreviewIntegration(QObject):
             current_time = self.timeline_engine.current_time
             self.update_timeline_position(current_time)
     
+    def set_video_source(self, video_path: str) -> None:
+        """
+        Set video source for preview background.
+        
+        Args:
+            video_path: Path to video file
+        """
+        try:
+            if self.timeline_engine:
+                # Update timeline engine with video source
+                self.timeline_engine.set_video_source(video_path)
+            
+            if self.preview_system:
+                # Update preview system with video source
+                self.preview_system.set_video_source(video_path)
+            
+            # Refresh preview to show new video
+            self._refresh_preview()
+            
+        except Exception as e:
+            self.error_occurred.emit(f"Error setting video source: {str(e)}")
+    
     def set_preview_quality(self, quality: QualityPreset) -> None:
         """
         Set preview quality and update effect processors.

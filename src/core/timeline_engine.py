@@ -10,7 +10,7 @@ from .models import (
     Keyframe, SubtitleTrack, VideoAsset, AudioAsset, InterpolationType, 
     EasingType, ValidationResult
 )
-from audio.waveform_generator import WaveformGenerator, WaveformData
+from ..audio.waveform_generator import WaveformGenerator, WaveformData
 
 
 class TimelineEngine(ITimelineEngine):
@@ -98,6 +98,56 @@ class TimelineEngine(ITimelineEngine):
     def get_all_tracks(self) -> List[SubtitleTrack]:
         """Get all subtitle tracks."""
         return list(self._subtitle_tracks.values())
+    
+    def add_track(self, track: SubtitleTrack) -> None:
+        """Add a track to the timeline (alias for add_subtitle_track)."""
+        self.add_subtitle_track(track)
+    
+    def get_current_time(self) -> float:
+        """Get current timeline time."""
+        return self._current_time
+    
+    def set_video_source(self, video_path: str) -> None:
+        """
+        Set video source for the timeline.
+        
+        Args:
+            video_path: Path to video file
+        """
+        # This would normally create a VideoAsset from the path
+        # For now, just store the path
+        self._video_source_path = video_path
+    
+    def get_active_elements_at_time(self, time: float) -> List[Tuple[str, List]]:
+        """
+        Get active subtitle elements at specified time.
+        
+        Args:
+            time: Timeline time in seconds
+            
+        Returns:
+            List of tuples (track_id, elements) for active elements
+        """
+        active_elements = []
+        
+        for track_id, track in self._subtitle_tracks.items():
+            track_elements = []
+            
+            # Check each element in the track
+            for element in track.elements:
+                # For now, assume elements are active during their time range
+                # This would normally check keyframes and timing
+                if hasattr(element, 'start_time') and hasattr(element, 'end_time'):
+                    if element.start_time <= time <= element.end_time:
+                        track_elements.append(element)
+                else:
+                    # If no timing info, assume always active
+                    track_elements.append(element)
+            
+            if track_elements:
+                active_elements.append((track_id, track_elements))
+        
+        return active_elements
     
     def add_keyframe(self, track_id: str, time: float, properties: Dict[str, Any]) -> bool:
         """

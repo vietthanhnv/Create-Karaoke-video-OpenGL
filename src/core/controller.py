@@ -85,10 +85,17 @@ class ApplicationController(IApplicationController):
             # Initialize project manager with validation system
             self._project_manager = ProjectManager(self._validation_system)
             
-            # Other subsystems will be initialized in later tasks
-            # self._timeline_engine = TimelineEngine()
-            # self._effect_system = EffectSystem()
-            # self._render_engine = RenderEngine()
+            # Initialize timeline engine
+            from .timeline_engine import TimelineEngine
+            self._timeline_engine = TimelineEngine()
+            
+            # Create combined effect system
+            from .effect_system import EffectSystem
+            self._effect_system = EffectSystem()
+            
+            # Initialize render engine
+            from ..graphics.opengl_renderer import OpenGLRenderer
+            self._render_engine = OpenGLRenderer()
             
             self._initialized = True
             return True

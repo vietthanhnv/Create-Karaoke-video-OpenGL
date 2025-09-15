@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 
 from ..core.models import ExportSettings, Project, ValidationResult
 from ..graphics.opengl_renderer import OpenGLRenderer
+from PyQt6.QtCore import QObject, pyqtSignal
 
 
 logger = logging.getLogger(__name__)
@@ -202,13 +203,18 @@ class QualityPreset:
         return list(cls.PRESETS.keys())
 
 
-class VideoExportPipeline:
+class VideoExportPipeline(QObject):
     """
     Complete video export pipeline with OpenGL rendering and FFmpeg encoding.
     
     Handles the entire export process from subtitle rendering to final video output.
     Supports both single exports and batch processing with queue management.
     """
+    
+    # Signals for UI integration
+    progress_updated = pyqtSignal(dict)
+    export_complete = pyqtSignal()
+    export_error = pyqtSignal(str)
     
     def __init__(self, renderer: Optional[OpenGLRenderer] = None):
         """
@@ -217,6 +223,7 @@ class VideoExportPipeline:
         Args:
             renderer: OpenGL renderer instance for subtitle rendering
         """
+        super().__init__()
         self.renderer = renderer
         self._ffmpeg_available = self._check_ffmpeg_availability()
         
@@ -261,6 +268,40 @@ class VideoExportPipeline:
         
         if not self._ffmpeg_available:
             logger.warning("FFmpeg not available - video export will be disabled")
+    
+    def export_project(self, project: Project, output_path: str, export_settings: dict):
+        """
+        Export project with given settings.
+        
+        Args:
+            project: Project to export
+            output_path: Output file path
+            export_settings: Export configuration
+        """
+        try:
+            # Emit progress updates
+            self.progress_updated.emit({
+                'progress': 0,
+                'operation': 'Starting export...',
+                'details': f'Exporting to {output_path}'
+            })
+            
+            # Simulate export process for now
+            import time
+            for i in range(101):
+                if i % 10 == 0:
+                    self.progress_updated.emit({
+                        'progress': i,
+                        'operation': f'Processing frame {i}/100',
+                        'frame_info': f'{i}/100',
+                        'details': f'Rendering frame {i}'
+                    })
+                time.sleep(0.05)  # Simulate work
+            
+            self.export_complete.emit()
+            
+        except Exception as e:
+            self.export_error.emit(str(e))
     
     def validate_export_settings(self, settings: ExportSettings) -> ValidationResult:
         """

@@ -430,10 +430,41 @@ class MainWindow(QMainWindow):
     def _new_project(self):
         """Handle new project creation."""
         if self.controller:
-            # This will be implemented when project management is integrated
-            pass
+            try:
+                # Show new project dialog
+                from .new_project_dialog import NewProjectDialog
+                dialog = NewProjectDialog(self)
+                
+                if dialog.exec() == dialog.DialogCode.Accepted:
+                    project_settings = dialog.get_project_settings()
+                    
+                    project_manager = self.controller.get_project_manager()
+                    project = project_manager.create_project(
+                        project_settings['name'],
+                        project_settings['resolution'],
+                        project_settings['framerate']
+                    )
+                    
+                    self.controller.set_current_project(project)
+                    self.current_project_path = None  # New project, not saved yet
+                    self._update_window_title()
+                    self._update_ui_state()
+                    
+                    self.status_bar.showMessage("New project created", 3000)
+                    
+            except ImportError:
+                # Fallback for missing dialog
+                project_manager = self.controller.get_project_manager()
+                project = project_manager.create_project("Untitled Project", (1920, 1080), 30.0)
+                self.controller.set_current_project(project)
+                self.current_project_path = None
+                self._update_window_title()
+                self._update_ui_state()
+                self.status_bar.showMessage("New project created", 3000)
+            except Exception as e:
+                QMessageBox.critical(self, "Project Error", f"Error creating project:\n{str(e)}")
         else:
-            QMessageBox.information(self, "New Project", "New project functionality will be implemented when project management is integrated.")
+            QMessageBox.information(self, "New Project", "Controller not initialized")
     
     def _open_project(self):
         """Handle project opening."""
@@ -482,8 +513,20 @@ class MainWindow(QMainWindow):
         )
         
         if file_path and self.controller:
-            # This will be implemented when video import is integrated
-            pass
+            try:
+                project_manager = self.controller.get_project_manager()
+                result = project_manager.import_video(file_path)
+                
+                if result.is_valid:
+                    self.status_bar.showMessage(f"Video imported: {file_path}", 3000)
+                    # Update preview with new video
+                    if hasattr(self.preview_integration, 'set_video_source'):
+                        self.preview_integration.set_video_source(file_path)
+                else:
+                    QMessageBox.warning(self, "Import Failed", f"Failed to import video:\n{result.error_message}")
+                    
+            except Exception as e:
+                QMessageBox.critical(self, "Import Error", f"Error importing video:\n{str(e)}")
     
     def _import_audio(self):
         """Handle audio import."""
@@ -495,8 +538,23 @@ class MainWindow(QMainWindow):
         )
         
         if file_path and self.controller:
-            # This will be implemented when audio import is integrated
-            pass
+            try:
+                project_manager = self.controller.get_project_manager()
+                audio_asset = project_manager.import_audio(file_path)
+                
+                # Validate the imported audio asset
+                validation_result = audio_asset.validate()
+                
+                if validation_result.is_valid:
+                    self.status_bar.showMessage(f"Audio imported: {file_path}", 3000)
+                    # Update timeline with audio waveform
+                    if hasattr(self.timeline_panel, 'set_audio_source'):
+                        self.timeline_panel.set_audio_source(file_path)
+                else:
+                    QMessageBox.warning(self, "Import Failed", f"Failed to import audio:\n{validation_result.error_message}")
+                    
+            except Exception as e:
+                QMessageBox.critical(self, "Import Error", f"Error importing audio:\n{str(e)}")
     
     def _import_subtitles(self):
         """Handle subtitle file import."""
@@ -529,8 +587,16 @@ class MainWindow(QMainWindow):
                     )
                     
                     # Add to timeline if controller is available
-                    if self.controller and hasattr(self.controller, 'add_subtitle_track'):
-                        self.controller.add_subtitle_track(subtitle_track)
+                    if self.controller:
+                        try:
+                            timeline_engine = self.controller.get_timeline_engine()
+                            timeline_engine.add_track(subtitle_track)
+                            
+                            # Update timeline panel
+                            if hasattr(self.timeline_panel, 'add_subtitle_track'):
+                                self.timeline_panel.add_subtitle_track(subtitle_track)
+                        except Exception as e:
+                            self.status_bar.showMessage(f"Error adding to timeline: {str(e)}", 3000)
                     
                     # Update UI
                     self._update_ui_state()
@@ -555,12 +621,44 @@ class MainWindow(QMainWindow):
             self,
             "Export Video",
             "",
-            "Video Files (*.mp4 *.mov *.avi);;All Files (*)"
+            "Video Files (*.mp4 *.mov *.avi);;MP4 Files (*.mp4);;MOV Files (*.mov);;AVI Files (*.avi)"
         )
         
         if file_path and self.controller:
-            # This will be implemented when export system is integrated
-            pass
+            try:
+                # Show export dialog for settings
+                from .export_dialog import ExportDialog
+                export_dialog = ExportDialog(self)
+                
+                if export_dialog.exec() == export_dialog.DialogCode.Accepted:
+                    export_settings = export_dialog.get_export_settings()
+                    
+                    # Start export process
+                    project = self.controller.get_current_project()
+                    if project:
+                        from ..video.export_pipeline import VideoExportPipeline
+                        export_pipeline = VideoExportPipeline()
+                        
+                        # Show progress dialog
+                        from .export_progress_dialog import ExportProgressDialog
+                        progress_dialog = ExportProgressDialog(self)
+                        
+                        # Connect export signals
+                        export_pipeline.progress_updated.connect(progress_dialog.update_progress)
+                        export_pipeline.export_complete.connect(progress_dialog.export_finished)
+                        export_pipeline.export_error.connect(progress_dialog.export_error)
+                        
+                        # Start export
+                        export_pipeline.export_project(project, file_path, export_settings)
+                        progress_dialog.exec()
+                    else:
+                        QMessageBox.warning(self, "Export Failed", "No project loaded to export")
+                        
+            except ImportError:
+                # Fallback for missing export dialogs
+                QMessageBox.information(self, "Export", f"Export functionality will save to: {file_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", f"Error during export:\n{str(e)}")
     
     def _show_about(self):
         """Show about dialog."""

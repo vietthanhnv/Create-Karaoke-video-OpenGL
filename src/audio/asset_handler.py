@@ -10,7 +10,7 @@ from pathlib import Path
 import tempfile
 import logging
 
-from core.models import AudioAsset, ValidationResult
+from ..core.models import AudioAsset, ValidationResult
 
 
 class AudioAssetHandler:
@@ -32,6 +32,22 @@ class AudioAssetHandler:
         
         if not self._ffprobe_available:
             logging.warning("FFprobe not available - audio metadata extraction will be limited")
+    
+    def load_audio_file(self, path: str) -> AudioAsset:
+        """
+        Load an audio file and create an AudioAsset.
+        
+        Args:
+            path: Path to the audio file
+            
+        Returns:
+            AudioAsset instance
+            
+        Raises:
+            FileNotFoundError: If audio file doesn't exist
+            ValueError: If audio file is invalid or unsupported
+        """
+        return self.create_audio_asset(path)
     
     def create_audio_asset(self, path: str) -> AudioAsset:
         """

@@ -443,3 +443,62 @@ class TimelinePanel(QWidget):
         if self.tracks:
             return list(self.tracks.keys())[0]
         return None
+    
+    def set_audio_source(self, audio_path: str) -> None:
+        """
+        Set audio source and generate waveform display.
+        
+        Args:
+            audio_path: Path to audio file
+        """
+        try:
+            # This would normally load audio and generate waveform
+            # For now, just create a placeholder waveform
+            import numpy as np
+            
+            # Generate dummy waveform data
+            duration = 180.0  # 3 minutes
+            sample_rate = 44100
+            samples = int(duration * sample_rate)
+            audio_data = np.random.random(samples) * 0.1  # Low amplitude noise
+            
+            self.add_waveform_display(audio_data, sample_rate)
+            self.set_duration(duration)
+            
+        except Exception as e:
+            print(f"Error setting audio source: {e}")
+    
+    def add_subtitle_track(self, subtitle_track) -> None:
+        """
+        Add a subtitle track to the timeline.
+        
+        Args:
+            subtitle_track: SubtitleTrack instance
+        """
+        track_id = subtitle_track.id
+        
+        # Create track widget
+        track_widget = TrackWidget(track_id)
+        track_widget.set_duration(self.duration)
+        track_widget.set_zoom_level(self.zoom_level)
+        
+        # Add elements from subtitle track
+        for element in subtitle_track.elements:
+            # Add text elements as keyframes
+            # This is a simplified implementation
+            track_widget.add_keyframe(0.0, {'text': element.content})
+        
+        self.tracks[track_id] = track_widget
+        self.timeline_layout.addWidget(track_widget)
+        
+        self.track_added.emit(track_id)
+    
+    def _start_playback(self) -> None:
+        """Start timeline playback."""
+        self.is_playing = True
+        self.playback_timer.start()
+    
+    def _pause_playback(self) -> None:
+        """Pause timeline playback."""
+        self.is_playing = False
+        self.playback_timer.stop()

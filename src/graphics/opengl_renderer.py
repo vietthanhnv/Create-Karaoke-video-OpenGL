@@ -56,6 +56,61 @@ class OpenGLRenderer(QOpenGLWidget):
         
         # Configure OpenGL surface format
         self._configure_surface_format()
+    
+    def initialize_opengl_context(self) -> bool:
+        """
+        Initialize OpenGL context and resources.
+        
+        Returns:
+            True if initialization successful, False otherwise
+        """
+        try:
+            # Make context current
+            self.makeCurrent()
+            
+            # Initialize OpenGL (this calls initializeGL)
+            self.initializeGL()
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize OpenGL context: {e}")
+            self.render_error.emit(str(e))
+            return False
+    
+    def render_frame(self, time: float = 0.0, subtitles: list = None) -> None:
+        """
+        Render a frame with subtitles at the specified time.
+        
+        Args:
+            time: Timeline time in seconds
+            subtitles: List of subtitle elements to render
+        """
+        if not self.isValid():
+            return
+        
+        try:
+            self.makeCurrent()
+            
+            # Clear the frame
+            gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+            
+            # Render subtitles if provided
+            if subtitles:
+                for subtitle in subtitles:
+                    self._render_subtitle_element(subtitle, time)
+            
+            # Update frame count for FPS calculation
+            self._frame_count += 1
+            
+        except Exception as e:
+            logger.error(f"Error rendering frame: {e}")
+            self.render_error.emit(str(e))
+    
+    def _render_subtitle_element(self, subtitle, time: float) -> None:
+        """Render a single subtitle element."""
+        # Placeholder implementation
+        pass
         
     def _configure_surface_format(self) -> None:
         """Configure OpenGL surface format with required capabilities."""
